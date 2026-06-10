@@ -1,0 +1,18 @@
+{
+  "name": "研修医 症例・手技ログ",
+  "short_name": "手技ログ",
+  "description": "初期研修医のための症例・手技記録（端末内のみ保存・匿名化）",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f5f6f8",
+  "theme_color": "#0d6efd",
+  "lang": "ja",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

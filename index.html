@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0d6efd">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.json">
+<title>研修医 症例・手技ログ</title>
+<style>
+  :root{
+    --bg:#f5f6f8; --card:#fff; --pri:#0d6efd; --pri-d:#0b5ed7;
+    --txt:#1f2329; --sub:#6b7280; --line:#e5e7eb; --danger:#dc3545;
+    --ok:#198754; --warn:#fff3cd; --warn-b:#ffe69c;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;
+    background:var(--bg);color:var(--txt);padding-bottom:72px;font-size:16px;line-height:1.5}
+  header{background:var(--pri);color:#fff;padding:14px 16px;position:sticky;top:0;z-index:10}
+  header h1{margin:0;font-size:18px;font-weight:700}
+  header .sub{font-size:12px;opacity:.85;margin-top:2px}
+  main{padding:14px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px;
+    box-shadow:0 1px 2px rgba(0,0,0,.03)}
+  .card h2{margin:0 0 12px;font-size:15px;font-weight:700}
+  label{display:block;font-size:13px;font-weight:600;color:var(--sub);margin:0 0 6px}
+  input[type=text],input[type=date],input[type=datetime-local],select,textarea{
+    width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;font-size:16px;background:#fff;color:var(--txt)}
+  textarea{min-height:60px;resize:vertical}
+  .row{margin-bottom:14px}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:none;border-radius:10px;
+    padding:13px 16px;font-size:16px;font-weight:600;cursor:pointer;width:100%}
+  .btn.pri{background:var(--pri);color:#fff}
+  .btn.pri:active{background:var(--pri-d)}
+  .btn.sec{background:#eef1f5;color:var(--txt)}
+  .btn.gho{background:#fff;border:1px solid var(--line);color:var(--txt)}
+  .btn.sm{width:auto;padding:8px 12px;font-size:14px}
+  .btn.dng{background:#fdeced;color:var(--danger)}
+  .grp{margin-bottom:10px}
+  .grp .gl{font-size:12px;font-weight:700;color:var(--sub);margin:0 0 6px}
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{border:1px solid var(--line);background:#fff;border-radius:999px;padding:8px 13px;font-size:14px;cursor:pointer}
+  .chip.on{background:var(--pri);color:#fff;border-color:var(--pri)}
+  .idbox{display:flex;gap:8px;align-items:center}
+  .idbox .code{font-weight:700;font-size:18px;color:var(--ok)}
+  .hint{font-size:12px;color:var(--sub);margin-top:6px}
+  .banner{background:var(--warn);border:1px solid var(--warn-b);border-radius:10px;padding:10px 12px;font-size:12.5px;color:#664d03;margin-bottom:14px}
+  nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--line);display:flex;
+    z-index:20;padding-bottom:env(safe-area-inset-bottom)}
+  nav button{flex:1;background:none;border:none;padding:10px 0;font-size:11px;color:var(--sub);cursor:pointer}
+  nav button .ic{font-size:20px;display:block}
+  nav button.on{color:var(--pri);font-weight:700}
+  .rec{border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px;background:#fff}
+  .rec .top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+  .rec .pcode{font-weight:700;color:var(--ok)}
+  .rec .proc{display:inline-block;background:#e7f1ff;color:var(--pri);border-radius:6px;padding:2px 8px;font-size:13px;font-weight:600;margin-top:4px}
+  .rec .meta{font-size:13px;color:var(--sub);margin-top:6px}
+  .rec .dx{font-size:15px;font-weight:600;margin-top:4px}
+  .empty{text-align:center;color:var(--sub);padding:34px 0;font-size:14px}
+  .stat{display:flex;justify-content:space-between;padding:11px 4px;border-bottom:1px solid var(--line);font-size:15px}
+  .stat:last-child{border-bottom:none}
+  .stat b{color:var(--pri)}
+  .total{font-size:28px;font-weight:800;color:var(--pri);text-align:center;margin:6px 0}
+  .ocrline{font-size:13px;color:var(--sub);margin-top:6px;min-height:18px}
+  .hide{display:none}
+  .toolbar{display:flex;gap:8px;margin-bottom:12px}
+  .seclabel{font-size:13px;font-weight:700;color:var(--sub);margin:18px 2px 8px}
+  dialog{border:none;border-radius:14px;padding:18px;max-width:90%;width:340px}
+  dialog::backdrop{background:rgba(0,0,0,.4)}
+  .modtitle{font-weight:700;margin-bottom:10px}
+</style>
+</head>
+<body>
+<header>
+  <h1>🩺 症例・手技ログ</h1>
+  <div class="sub">初期研修記録｜端末内のみ保存・匿名化</div>
+</header>
+
+<main>
+  <!-- ========== 症例記録タブ ========== -->
+  <section id="tab-case">
+    <div class="banner">
+      🔒 患者IDは<b>ハッシュ化して匿名コード</b>に変換して保存します。生のIDや写真は端末に残しません。データはこのスマホ内のみ。
+    </div>
+
+    <div class="card">
+      <h2>📁 症例を登録</h2>
+      <div class="row">
+        <label>患者ID（写メで取り込み or 手入力）</label>
+        <div class="idbox">
+          <button class="btn sec sm" id="btnCam_case">📷 写メから読取</button>
+          <button class="btn gho sm" id="btnManual_case">⌨️ 手入力</button>
+        </div>
+        <input type="file" id="fileCam_case" accept="image/*" capture="environment" class="hide">
+        <input type="text" id="rawId_case" placeholder="患者ID（保存されません）" class="hide" style="margin-top:8px">
+        <div class="ocrline" id="ocrLine_case"></div>
+        <div style="margin-top:8px">
+          <span class="hint">匿名コード：</span>
+          <span class="code" id="anonCode_case">未設定</span>
+        </div>
+      </div>
+
+      <div class="row">
+        <label>疾患名</label>
+        <input type="text" id="dxCase" list="dxList" placeholder="例：細菌性髄膜炎">
+        <datalist id="dxList"></datalist>
+      </div>
+
+      <div class="row">
+        <label>記録日</label>
+        <input type="date" id="caseDate">
+      </div>
+
+      <div class="row">
+        <label>メモ（任意）</label>
+        <textarea id="memoCase" placeholder="経過・気づきなど（個人を特定できる情報は書かないでください）"></textarea>
+      </div>
+
+      <button class="btn pri" id="btnSaveCase">💾 症例を登録</button>
+    </div>
+
+    <div class="seclabel">登録済みの症例</div>
+    <div class="toolbar">
+      <input type="text" id="searchCase" placeholder="🔍 疾患・匿名コードで検索">
+    </div>
+    <div class="toolbar">
+      <button class="btn gho sm" id="btnExportCase">⬇️ CSV書き出し</button>
+    </div>
+    <div id="listCase"></div>
+  </section>
+
+  <!-- ========== 手技ログタブ ========== -->
+  <section id="tab-proc" class="hide">
+    <div class="card">
+      <h2>🩺 手技を登録</h2>
+      <div class="row">
+        <label>手技（タップで選択）</label>
+        <div id="procChips"></div>
+        <input type="text" id="procOther" placeholder="その他の手技を入力" style="margin-top:10px">
+      </div>
+
+      <div class="row">
+        <label>施行日</label>
+        <input type="date" id="procDate">
+      </div>
+
+      <div class="row">
+        <label>監督者（指導医）</label>
+        <input type="text" id="supervisor" list="supList" placeholder="例：山田 太郎">
+        <datalist id="supList"></datalist>
+      </div>
+
+      <div class="row">
+        <label>患者ID（任意・写メ/手入力）</label>
+        <div class="idbox">
+          <button class="btn sec sm" id="btnCam_proc">📷 写メから読取</button>
+          <button class="btn gho sm" id="btnManual_proc">⌨️ 手入力</button>
+        </div>
+        <input type="file" id="fileCam_proc" accept="image/*" capture="environment" class="hide">
+        <input type="text" id="rawId_proc" placeholder="患者ID（保存されません）" class="hide" style="margin-top:8px">
+        <div class="ocrline" id="ocrLine_proc"></div>
+        <div style="margin-top:8px">
+          <span class="hint">匿名コード：</span>
+          <span class="code" id="anonCode_proc">未設定</span>
+        </div>
+      </div>
+
+      <div class="row">
+        <label>メモ（任意）</label>
+        <textarea id="memoProc" placeholder="合併症・気づきなど（個人を特定できる情報は書かないでください）"></textarea>
+      </div>
+
+      <button class="btn pri" id="btnSaveProc">💾 手技を登録</button>
+    </div>
+
+    <div class="seclabel">登録済みの手技</div>
+    <div class="toolbar">
+      <input type="text" id="searchProc" placeholder="🔍 手技・監督者で検索">
+    </div>
+    <div class="toolbar">
+      <button class="btn gho sm" id="btnExportProc">⬇️ CSV書き出し</button>
+    </div>
+    <div id="listProc"></div>
+  </section>
+
+  <!-- ========== 同期タブ ========== -->
+  <section id="tab-sync" class="hide">
+    <div class="banner">
+      ☁️ Driveに保存されるのは<b>匿名化済みデータのみ</b>（症例・手技・コード対応表）。<b>生のID・写真は含まれません</b>。
+    </div>
+
+    <div class="card">
+      <h2>📱 このアプリを同僚に配る（QRコード）</h2>
+      <div class="hint" style="margin-bottom:10px">公開URLをスマホのカメラで読み取ると、すぐ開けます。※公開（https化）後に有効です。</div>
+      <button class="btn sec" id="btnShowQR">QRコードを表示</button>
+      <div id="qrWrap" style="text-align:center;margin-top:14px"></div>
+      <div id="qrUrl" class="hint" style="text-align:center;word-break:break-all"></div>
+    </div>
+
+    <div class="card">
+      <h2>① Google連携の設定</h2>
+      <div class="row">
+        <label>OAuth クライアントID</label>
+        <input type="text" id="gid" placeholder="xxxxxxxx.apps.googleusercontent.com">
+        <div class="hint">Google Cloud Consoleで発行（下の手順）。この端末内に保存されます。</div>
+      </div>
+      <button class="btn sec" id="btnSaveGid">クライアントIDを保存</button>
+      <div class="hint" id="gidStatus" style="margin-top:10px"></div>
+
+      <details style="margin-top:14px">
+        <summary style="cursor:pointer;font-size:13px;color:var(--pri);font-weight:600">📖 クライアントIDの取得手順</summary>
+        <ol style="font-size:13px;color:var(--sub);line-height:1.9;padding-left:18px;margin-top:8px">
+          <li><a href="https://console.cloud.google.com/" target="_blank">Google Cloud Console</a> でプロジェクトを作成</li>
+          <li>「APIとサービス」→「ライブラリ」で <b>Google Drive API</b> を有効化</li>
+          <li>「OAuth同意画面」を構成（User type: 外部、テストユーザーに自分のGmailを追加）</li>
+          <li>「認証情報」→「OAuthクライアントID」→ アプリの種類 <b>ウェブアプリケーション</b></li>
+          <li><b>承認済みのJavaScript生成元</b> にこのアプリのURLを追加<br>
+            （例：<code>http://localhost:8766</code> / 公開後は <code>https://...</code>）</li>
+          <li>発行された <b>クライアントID</b> を上の欄に貼り付けて保存</li>
+        </ol>
+      </details>
+    </div>
+
+    <div class="card">
+      <h2>② バックアップ / 復元</h2>
+      <button class="btn pri" id="btnBackup">☁️ Driveへバックアップ</button>
+      <div style="height:8px"></div>
+      <button class="btn gho" id="btnRestore">⬇️ Driveから復元（この端末を上書き）</button>
+      <div class="hint" id="syncStatus" style="margin-top:12px;min-height:20px"></div>
+    </div>
+  </section>
+
+  <!-- ========== 集計タブ ========== -->
+  <section id="tab-stat" class="hide">
+    <div class="card">
+      <label>登録症例数 ／ 手技総数</label>
+      <div class="total"><span id="statCaseTotal">0</span> ／ <span id="statProcTotal">0</span></div>
+    </div>
+    <div class="card">
+      <label>手技ごとの件数</label>
+      <div id="statProc"></div>
+    </div>
+    <div class="card">
+      <label>疾患ごとの件数</label>
+      <div id="statDx"></div>
+    </div>
+    <div class="card">
+      <label>監督者ごとの件数</label>
+      <div id="statSup"></div>
+    </div>
+  </section>
+</main>
+
+<nav>
+  <button data-tab="case" class="on"><span class="ic">📁</span>症例記録</button>
+  <button data-tab="proc"><span class="ic">🩺</span>手技ログ</button>
+  <button data-tab="stat"><span class="ic">📊</span>集計</button>
+  <button data-tab="sync"><span class="ic">☁️</span>同期</button>
+</nav>
+
+<dialog id="dlg">
+  <div class="modtitle" id="dlgTitle">記録</div>
+  <div id="dlgBody" style="font-size:14px"></div>
+  <div style="display:flex;gap:8px;margin-top:16px">
+    <button class="btn dng sm" id="dlgDel" style="flex:1">削除</button>
+    <button class="btn pri sm" id="dlgClose" style="flex:1">閉じる</button>
+  </div>
+</dialog>
+
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
+<script src="app.js"></script>
+<script src="drive.js"></script>
+</body>
+</html>
