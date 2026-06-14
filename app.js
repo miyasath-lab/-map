@@ -118,7 +118,7 @@ function switchTab(name){
   if(name === 'case') renderCaseList();
   if(name === 'proc') renderProcList();
   if(name === 'stat') renderStat();
-  if(name === 'sync' && window.renderSync) renderSync();
+  if(name === 'sync'){ if(window.renderSync) renderSync(); if(window.renderGas) renderGas(); }
 }
 
 /* ---------- 手技チップ（グループ表示） ---------- */

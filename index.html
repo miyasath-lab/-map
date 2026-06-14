@@ -63,7 +63,7 @@
   .stat b{color:var(--pri)}
   .total{font-size:28px;font-weight:800;color:var(--pri);text-align:center;margin:6px 0}
   .ocrline{font-size:13px;color:var(--sub);margin-top:6px;min-height:18px}
-  .hide{display:none}
+  .hide{display:none !important}
   .toolbar{display:flex;gap:8px;margin-bottom:12px}
   .seclabel{font-size:13px;font-weight:700;color:var(--sub);margin:18px 2px 8px}
   dialog{border:none;border-radius:14px;padding:18px;max-width:90%;width:340px}
@@ -199,7 +199,46 @@
     </div>
 
     <div class="card">
-      <h2>① Google連携の設定</h2>
+      <h2>📊 集計シートへ送信（GAS）</h2>
+      <div class="hint" style="margin-bottom:10px">GASのWeb App URLに匿名化データを送り、Googleスプレッドシートで集計します。設定手順はREADME参照。</div>
+
+      <button class="btn gho" id="btnScanGas">📷 QRコードで設定を読み取る</button>
+      <div style="height:14px"></div>
+
+      <div class="row">
+        <label>GAS Web App URL</label>
+        <input type="text" id="gasUrl" placeholder="https://script.google.com/macros/s/..../exec">
+      </div>
+      <div class="row">
+        <label>合言葉（GAS側と同じ文字列にする）</label>
+        <input type="text" id="gasKey" placeholder="例：kensyu2026">
+      </div>
+      <div class="row">
+        <label>研修医名/ID（任意・シートで区別用）</label>
+        <input type="text" id="gasUser" placeholder="例：宮里">
+      </div>
+      <button class="btn sec" id="btnSaveGas">設定を保存</button>
+      <div style="height:8px"></div>
+      <button class="btn pri" id="btnSendGas">📤 シートへ送信</button>
+      <div class="hint" id="gasStatus" style="margin-top:12px;min-height:20px"></div>
+
+      <details style="margin-top:14px">
+        <summary style="cursor:pointer;font-size:13px;color:var(--pri);font-weight:600">🔳 設定QRを表示（みんなに配る用）</summary>
+        <div class="hint" style="margin:8px 0">URL＋合言葉を1枚のQRに。研修医はこれを「📷 QRコードで設定を読み取る」でスキャンするだけで設定完了。</div>
+        <button class="btn gho" id="btnShowGasQR">設定QRを作成</button>
+        <div id="gasQrWrap" style="text-align:center;margin-top:12px"></div>
+      </details>
+    </div>
+
+    <!-- QRスキャン用オーバーレイ -->
+    <div id="scanOverlay" class="hide" style="position:fixed;inset:0;background:#000;z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center">
+      <video id="scanVideo" playsinline style="max-width:100%;max-height:75vh"></video>
+      <div style="color:#fff;margin-top:14px;font-size:14px">設定QRをカメラに写してください</div>
+      <button class="btn gho sm" id="btnScanCancel" style="margin-top:16px;width:auto">キャンセル</button>
+    </div>
+
+    <div class="card">
+      <h2>① Google連携の設定（Driveバックアップ用）</h2>
       <div class="row">
         <label>OAuth クライアントID</label>
         <input type="text" id="gid" placeholder="xxxxxxxx.apps.googleusercontent.com">
@@ -271,7 +310,9 @@
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <script src="app.js"></script>
 <script src="drive.js"></script>
+<script src="gas.js"></script>
 </body>
 </html>
