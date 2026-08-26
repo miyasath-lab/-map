@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0d6efd">
+<title>登録クリニック マップ</title>
+<link rel="stylesheet" href="vendor/leaflet/leaflet.css">
+<style>
+  :root{
+    --bg:#f5f6f8; --card:#fff; --pri:#0d6efd; --txt:#1f2329; --sub:#6b7280; --line:#e5e7eb;
+    --c-nai:#0d6efd;   /* 内科系 */
+    --c-shi:#12a150;   /* 歯科系 */
+    --c-fu:#d63384;    /* 婦人科系 */
+    --c-etc:#8a94a6;   /* その他 */
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;
+    background:var(--bg);color:var(--txt);font-size:15px;line-height:1.5;overflow:hidden}
+  #app{display:flex;height:100vh;height:100dvh}
+  /* ---- サイドパネル ---- */
+  #side{width:340px;flex:0 0 340px;background:var(--card);border-right:1px solid var(--line);
+    display:flex;flex-direction:column;z-index:1200;position:relative}
+  #side header{background:var(--pri);color:#fff;padding:12px 14px}
+  #side header h1{margin:0;font-size:16px;font-weight:700}
+  #side header .sub{font-size:11px;opacity:.85;margin-top:2px}
+  .pane{padding:12px 14px;border-bottom:1px solid var(--line)}
+  .pane h2{margin:0 0 8px;font-size:12px;font-weight:700;color:var(--sub);letter-spacing:.04em}
+  input[type=search],select{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:9px;
+    font-size:15px;background:#fff;color:var(--txt)}
+  .legend{display:flex;flex-direction:column;gap:4px}
+  .legend label{display:flex;align-items:center;gap:8px;padding:5px 6px;border-radius:8px;cursor:pointer;font-size:14px}
+  .legend label:hover{background:#f2f4f7}
+  .legend input{margin:0;width:16px;height:16px;accent-color:var(--pri)}
+  .dot{width:14px;height:14px;border-radius:50%;flex:0 0 14px;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.25)}
+  .legend .n{margin-left:auto;font-size:12px;color:var(--sub);font-variant-numeric:tabular-nums}
+  .rowbtns{display:flex;gap:6px;margin-top:8px}
+  .btn{flex:1;border:1px solid var(--line);background:#fff;color:var(--txt);border-radius:9px;
+    padding:8px 6px;font-size:13px;font-weight:600;cursor:pointer}
+  .btn:hover{background:#f2f4f7}
+  .btn.pri{background:var(--pri);border-color:var(--pri);color:#fff}
+  #count{font-size:12px;color:var(--sub);padding:8px 14px 4px}
+  #list{flex:1;overflow-y:auto;padding:0 8px 12px}
+  .item{padding:9px 8px;border-radius:9px;cursor:pointer;border-bottom:1px solid #f0f1f4}
+  .item:hover{background:#f2f4f7}
+  .item .nm{display:flex;align-items:center;gap:7px;font-weight:600;font-size:14px}
+  .item .ad{font-size:12px;color:var(--sub);margin-left:21px}
+  .item .dp{font-size:11px;color:var(--sub);margin-left:21px;opacity:.9}
+  .item.approx .nm::after{content:"概略";font-size:10px;font-weight:600;color:#b45309;
+    background:#fef3c7;border-radius:4px;padding:1px 4px;margin-left:auto}
+  /* ---- 地図 ---- */
+  #mapwrap{flex:1;position:relative}
+  #map{position:absolute;inset:0}
+  #status{position:absolute;left:50%;transform:translateX(-50%);top:10px;z-index:900;
+    background:rgba(255,255,255,.96);border:1px solid var(--line);border-radius:999px;
+    padding:7px 14px;font-size:12px;box-shadow:0 2px 8px rgba(0,0,0,.12);display:none;align-items:center;gap:8px;
+    max-width:min(560px,88%);border-radius:14px;text-align:left;line-height:1.5}
+  #status.on{display:flex}
+  #bar{width:110px;height:5px;background:#e5e7eb;border-radius:3px;overflow:hidden}
+  #bar > i{display:block;height:100%;width:0;background:var(--pri);transition:width .2s}
+  .leaflet-popup-content{margin:12px 14px;font-size:14px;line-height:1.6}
+  .pop h3{margin:0 0 6px;font-size:15px}
+  .pop .tags{display:flex;gap:4px;flex-wrap:wrap;margin:0 0 6px}
+  .pop .tag{font-size:11px;font-weight:600;color:#fff;border-radius:999px;padding:2px 8px}
+  .pop dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:2px 8px}
+  .pop dt{color:var(--sub);font-size:12px;white-space:nowrap}
+  .pop dd{margin:0;font-size:13px}
+  .pop .warn{margin-top:6px;font-size:11px;color:#b45309;background:#fef3c7;border-radius:6px;padding:4px 6px}
+  .marker svg{display:block;filter:drop-shadow(0 1px 2px rgba(0,0,0,.4))}
+  #closeside{display:none;position:absolute;right:10px;top:10px;background:rgba(255,255,255,.2);color:#fff;
+    border:0;border-radius:8px;padding:6px 10px;font-size:14px;cursor:pointer}
+  /* ---- モバイル ---- */
+  #toggle{display:none;position:absolute;left:10px;top:10px;z-index:900;background:#fff;border:1px solid var(--line);
+    border-radius:9px;padding:8px 12px;font-size:14px;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,.12);cursor:pointer}
+  @media (max-width:760px){
+    #app{flex-direction:column}
+    #side{position:absolute;inset:0;width:auto;flex:none;transform:translateX(-100%);transition:transform .22s}
+    #side.open{transform:none}
+    #mapwrap{flex:1}
+    #toggle{display:block}
+    #side header{padding-right:56px}
+    #closeside{display:block}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <aside id="side">
+    <header>
+      <h1>登録クリニック マップ</h1>
+      <div class="sub" id="srcline">出典：登録医一覧</div>
+      <button id="closeside">閉じる</button>
+    </header>
+
+    <div class="pane">
+      <h2>診療科の系統でしぼり込み</h2>
+      <div class="legend" id="legend"></div>
+    </div>
+
+    <div class="pane">
+      <h2>検索・エリア</h2>
+      <input type="search" id="q" placeholder="医院名・住所・診療科目で検索">
+      <div style="height:8px"></div>
+      <select id="area"><option value="">すべてのエリア</option></select>
+      <div class="rowbtns">
+        <button class="btn" id="fit">表示中に合わせる</button>
+        <button class="btn" id="menu">データ ▾</button>
+      </div>
+    </div>
+
+    <div id="count"></div>
+    <div id="list"></div>
+  </aside>
+
+  <div id="mapwrap">
+    <button id="toggle">☰ 一覧</button>
+    <div id="map"></div>
+    <div id="status"><span id="statustext">位置を取得中…</span><span id="bar"><i></i></span></div>
+  </div>
+</div>
+
+<script src="vendor/leaflet/leaflet.js"></script>
+<script src="clinics.js"></script>
+<script>
+(function(){
+'use strict';
+
+/* ============ 分類と色 ============ */
+const CATS = ['内科系','歯科系','婦人科系','その他'];
+const COLOR = {'内科系':'#0d6efd','歯科系':'#12a150','婦人科系':'#d63384','その他':'#8a94a6'};
+const CATLABEL = {'内科系':'内科系（内科・小児科）','歯科系':'歯科系','婦人科系':'婦人科系（産科・婦人科）','その他':'その他の科'};
+
+const DATA = (window.CLINICS || []).map(c => Object.assign({}, c));
+const SRC  = window.CLINIC_SOURCE || {};
+
+/* 市町村の代表点（ジオコーディングに失敗したときの概略位置） */
+const CITY_LL = {
+  '那覇市':[26.2124,127.6809], '糸満市':[26.1247,127.6664], '豊見城市':[26.1772,127.6860],
+  '南風原町':[26.1889,127.7261], '八重瀬町':[26.1183,127.7278], '南城市':[26.1443,127.7686],
+  '与那原町':[26.2005,127.7530], '浦添市':[26.2458,127.7217], '宜野湾市':[26.2816,127.7784],
+  '西原町':[26.2229,127.7594], '中城村':[26.2683,127.7867], '沖縄市':[26.3344,127.8056],
+  'うるま市':[26.3792,127.8578], '嘉手納町':[26.3617,127.7556], '名護市':[26.5917,127.9775],
+  '石垣市':[24.3406,124.1556]
+};
+
+/* ============ 地図 ============ */
+const map = L.map('map', { center:[26.2124,127.6809], zoom:12, zoomControl:true, preferCanvas:false });
+const std = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', {
+  maxZoom:18, attribution:'地図：<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener">国土地理院</a>'
+});
+const pale = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png', {
+  maxZoom:18, attribution:'地図：<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener">国土地理院</a>'
+});
+pale.addTo(map);
+L.control.layers({ '淡色地図':pale, '標準地図':std }, null, { position:'topright', collapsed:true }).addTo(map);
+
+/* ============ マーカーのアイコン（複数該当は色を分割） ============ */
+function markerIcon(cats, approx){
+  const r = 9, size = 26, c = size/2;
+  const cols = cats.map(k => COLOR[k] || COLOR['その他']);
+  let inner = '';
+  if(cols.length === 1){
+    inner = `<circle cx="${c}" cy="${c}" r="${r}" fill="${cols[0]}"/>`;
+  }else{
+    const step = 360 / cols.length;
+    inner = cols.map((col,i) => {
+      const a0 = (-90 + i*step) * Math.PI/180, a1 = (-90 + (i+1)*step) * Math.PI/180;
+      const x0 = c + r*Math.cos(a0), y0 = c + r*Math.sin(a0);
+      const x1 = c + r*Math.cos(a1), y1 = c + r*Math.sin(a1);
+      const large = step > 180 ? 1 : 0;
+      return `<path d="M${c},${c} L${x0.toFixed(2)},${y0.toFixed(2)} A${r},${r} 0 ${large},1 ${x1.toFixed(2)},${y1.toFixed(2)} Z" fill="${col}"/>`;
+    }).join('');
+  }
+  const ring = approx
+    ? `<circle cx="${c}" cy="${c}" r="${r+2}" fill="none" stroke="#b45309" stroke-width="2" stroke-dasharray="3 2"/>`
+    : `<circle cx="${c}" cy="${c}" r="${r}" fill="none" stroke="#fff" stroke-width="2.5"/>`;
+  return L.divIcon({
+    className:'marker', iconSize:[size,size], iconAnchor:[c,c], popupAnchor:[0,-c+2],
+    html:`<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">${inner}${ring}</svg>`
+  });
+}
+
+function popupHtml(c){
+  const tags = c.cats.map(k => `<span class="tag" style="background:${COLOR[k]}">${k}</span>`).join('');
+  const tel = c.tel.replace(/[^0-9]/g,'');
+  return `<div class="pop">
+    <h3>${esc(c.name)}</h3>
+    <div class="tags">${tags}</div>
+    <dl>
+      <dt>住所</dt><dd>${esc(c.addr)}</dd>
+      <dt>診療科目</dt><dd>${esc(c.dept)}</dd>
+      <dt>電話</dt><dd><a href="tel:${tel}">${esc(c.tel)}</a></dd>
+      <dt>エリア</dt><dd>${esc(c.area || '')}</dd>
+    </dl>
+    ${c.approx ? '<div class="warn">正確な位置が取れなかったため、市町村の代表点に仮置きしています（ドラッグで移動できます）。</div>' : ''}
+  </div>`;
+}
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+/* ============ 位置キャッシュ ============ */
+const CACHE_KEY = 'clinicGeo_v1';
+let cache = {};
+try { cache = JSON.parse(localStorage.getItem(CACHE_KEY) || '{}'); } catch(e){ cache = {}; }
+function saveCache(){ try { localStorage.setItem(CACHE_KEY, JSON.stringify(cache)); } catch(e){} }
+
+/* ============ ジオコーディング（国土地理院 住所検索API） ============ */
+const GSI = 'https://msearch.gsi.go.jp/address-search/AddressSearch?q=';
+
+function variants(q){
+  // 番地の末尾から順に落として再挑戦する
+  const out = [q];
+  let s = q;
+  for(let i=0;i<3;i++){
+    const t = s.replace(/-[0-9]+$/, '');
+    if(t === s) break;
+    out.push(t); s = t;
+  }
+  return out;
+}
+
+const net = { ok:0, fail:0, blocked:false };
+
+async function geocode(q){
+  for(const v of variants(q)){
+    try{
+      const res = await fetch(GSI + encodeURIComponent(v));
+      if(!res.ok){ net.fail++; continue; }
+      net.ok++;
+      const js = await res.json();
+      if(Array.isArray(js) && js.length){
+        // タイトルが長い＝より詳細な一致を優先
+        const best = js.slice().sort((a,b) =>
+          (b.properties?.title || '').length - (a.properties?.title || '').length)[0];
+        const co = best.geometry && best.geometry.coordinates;
+        if(co && isFinite(co[0]) && isFinite(co[1])){
+          return { lat:+co[1], lng:+co[0], approx: v !== q, src:'gsi', hit: best.properties?.title || v };
+        }
+      }
+    }catch(e){ net.fail++; }
+    // 通信が丸ごと遮断されている（社内ネットワーク等）ときは早めに打ち切る
+    if(net.ok === 0 && net.fail >= 8){ net.blocked = true; return null; }
+    await sleep(120);
+  }
+  return null;
+}
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+/* ============ 描画 ============ */
+const layer = L.layerGroup().addTo(map);
+const markers = new Map();   // id -> marker
+
+/* 同じビル・同じ住所で座標が完全に重なるものは、少しずらして全部押せるようにする */
+function spread(list){
+  const groups = new Map();
+  list.forEach(c => {
+    if(c.lat == null) return;
+    c.dlat = c.lat; c.dlng = c.lng;
+    const key = c.lat.toFixed(6) + ',' + c.lng.toFixed(6);
+    if(!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(c);
+  });
+  groups.forEach(g => {
+    if(g.length < 2) return;
+    const r = 0.00013 + 0.00004 * g.length;           // 約15〜25m
+    g.forEach((c, i) => {
+      const a = (i / g.length) * Math.PI * 2 - Math.PI / 2;
+      c.dlat = c.lat + Math.sin(a) * r;
+      c.dlng = c.lng + Math.cos(a) * r / Math.cos(c.lat * Math.PI / 180);
+    });
+  });
+}
+
+function place(c){
+  const ll = [c.dlat != null ? c.dlat : c.lat, c.dlng != null ? c.dlng : c.lng];
+  let m = markers.get(c.id);
+  if(m){
+    m.setLatLng(ll); m.setIcon(markerIcon(c.cats, c.approx));
+  }else{
+    m = L.marker(ll, { icon:markerIcon(c.cats, c.approx), title:c.name, draggable:!!c.approx });
+    m.bindPopup(() => popupHtml(c));
+    m.on('dragend', () => {
+      const p = m.getLatLng();
+      c.lat = p.lat; c.lng = p.lng; c.approx = false; c.src = 'manual';
+      cache[c.q] = { lat:p.lat, lng:p.lng, approx:false, src:'manual' };
+      saveCache();
+      m.setIcon(markerIcon(c.cats, false)); m.dragging.disable();
+      render();
+    });
+    markers.set(c.id, m);
+  }
+  return m;
+}
+
+const state = { cats:new Set(CATS), q:'', area:'' };
+
+function visible(){
+  const q = state.q.trim().toLowerCase();
+  return DATA.filter(c => {
+    if(!c.cats.some(k => state.cats.has(k))) return false;
+    if(state.area && c.area !== state.area) return false;
+    if(q && !(c.name + c.addr + c.dept + c.tel).toLowerCase().includes(q)) return false;
+    return true;
+  });
+}
+
+function render(){
+  layer.clearLayers();
+  spread(DATA);
+  const vis = visible();
+  vis.forEach(c => { if(c.lat != null) layer.addLayer(place(c)); });
+  renderList(vis);
+  renderLegend();
+}
+
+function renderList(vis){
+  vis = vis || visible();
+  const located = vis.filter(c => c.lat != null).length;
+  document.getElementById('count').textContent =
+    `${vis.length}件を表示（地図上に${located}件）／全${DATA.length}件`;
+  const box = document.getElementById('list');
+  box.innerHTML = '';
+  const frag = document.createDocumentFragment();
+  vis.forEach(c => {
+    const el = document.createElement('div');
+    el.className = 'item' + (c.approx ? ' approx' : '');
+    const dot = c.cats.length === 1
+      ? `<span class="dot" style="background:${COLOR[c.cats[0]]}"></span>`
+      : `<span class="dot" style="background:linear-gradient(90deg,${c.cats.map(k=>COLOR[k]).join(',')})"></span>`;
+    el.innerHTML = `<div class="nm">${dot}${esc(c.name)}</div>
+      <div class="ad">${esc(c.addr)}</div><div class="dp">${esc(c.dept)}</div>`;
+    el.onclick = () => {
+      if(c.lat == null) return;
+      map.setView([c.dlat != null ? c.dlat : c.lat, c.dlng != null ? c.dlng : c.lng], Math.max(map.getZoom(), 17));
+      const m = markers.get(c.id); if(m) m.openPopup();
+      document.getElementById('side').classList.remove('open');
+    };
+    frag.appendChild(el);
+  });
+  box.appendChild(frag);
+}
+
+function renderLegend(){
+  const counts = {};
+  CATS.forEach(k => counts[k] = 0);
+  DATA.forEach(c => c.cats.forEach(k => counts[k]++));
+  const box = document.getElementById('legend');
+  if(box.dataset.built){
+    CATS.forEach(k => {
+      const cb = box.querySelector(`input[value="${k}"]`);
+      if(cb) cb.checked = state.cats.has(k);
+    });
+    return;
+  }
+  box.dataset.built = '1';
+  box.innerHTML = CATS.map(k => `
+    <label>
+      <input type="checkbox" value="${k}" ${state.cats.has(k)?'checked':''}>
+      <span class="dot" style="background:${COLOR[k]}"></span>
+      <span>${CATLABEL[k]}</span><span class="n">${counts[k]}</span>
+    </label>`).join('');
+  box.addEventListener('change', e => {
+    const k = e.target.value;
+    if(e.target.checked) state.cats.add(k); else state.cats.delete(k);
+    render();
+  });
+}
+
+/* ============ 位置の取得（キャッシュ→API→市町村代表点） ============ */
+function applyCached(){
+  let n = 0;
+  DATA.forEach(c => {
+    const hit = cache[c.q];
+    if(hit && isFinite(hit.lat) && isFinite(hit.lng)){
+      c.lat = hit.lat; c.lng = hit.lng; c.approx = !!hit.approx; c.src = hit.src; n++;
+    }
+  });
+  return n;
+}
+
+const cityUsed = {};
+function fallbackCity(c){
+  const ll = CITY_LL[c.city];
+  if(!ll) return false;
+  // 同じ市町村に重ならないよう、代表点のまわりに渦巻き状に並べる
+  const i = (cityUsed[c.city] = (cityUsed[c.city] || 0) + 1) - 1;
+  const a = i * 2.39996, d = 0.0022 * Math.sqrt(i + 1);
+  c.lat = ll[0] + Math.sin(a) * d;
+  c.lng = ll[1] + Math.cos(a) * d / Math.cos(ll[0] * Math.PI / 180);
+  c.approx = true; c.src = 'city';
+  return true;
+}
+
+const statusEl = document.getElementById('status');
+const statusText = document.getElementById('statustext');
+const barEl = document.querySelector('#bar > i');
+function status(msg, pct){
+  if(msg === null){ statusEl.classList.remove('on'); return; }
+  statusEl.classList.add('on');
+  statusText.textContent = msg;
+  barEl.style.width = (pct == null ? 0 : Math.round(pct*100)) + '%';
+}
+
+async function locateAll(){
+  Object.keys(cityUsed).forEach(k => delete cityUsed[k]);
+  const todo = DATA.filter(c => c.lat == null);
+  if(!todo.length){ status(null); fitAll({initial:true}); return; }
+  status(`位置を取得中… 0/${todo.length}`, 0);
+  let done = 0, failed = 0;
+  const WORKERS = 4;
+  const queue = todo.slice();
+  async function worker(){
+    while(queue.length){
+      const c = queue.shift();
+      const r = net.blocked ? null : await geocode(c.q);
+      if(r){
+        c.lat = r.lat; c.lng = r.lng; c.approx = r.approx; c.src = r.src;
+        cache[c.q] = { lat:r.lat, lng:r.lng, approx:r.approx, src:r.src };
+      }else{
+        failed++;
+        fallbackCity(c);
+      }
+      done++;
+      if(done % 5 === 0 || done === todo.length){
+        status(`位置を取得中… ${done}/${todo.length}`, done/todo.length);
+        saveCache(); render();
+      }
+      await sleep(80);
+    }
+  }
+  await Promise.all(Array.from({length:WORKERS}, worker));
+  saveCache(); render(); fitAll({initial:true});
+  if(net.blocked){
+    status('住所検索API（国土地理院）に接続できないため、全件を市町村の代表点に置いています。' +
+           'ネットワークを確認して再読み込みするか、「データ▾」から位置データを読み込んでください。', 1);
+  }else if(failed){
+    status(`${todo.length - failed}件の位置を取得（${failed}件は市町村の概略位置）`, 1);
+    setTimeout(() => status(null), 6000);
+  }else{
+    status(null);
+  }
+}
+
+function fitAll(opt){
+  let list = visible().filter(c => c.lat != null);
+  // 最初の表示は離島（石垣など）を外して、本島側が大きく見えるようにする
+  if(opt && opt.initial && !state.area){
+    const main = list.filter(c => c.area !== '離島');
+    if(main.length) list = main;
+  }
+  const pts = list.map(c => [c.dlat != null ? c.dlat : c.lat, c.dlng != null ? c.dlng : c.lng]);
+  if(pts.length) map.fitBounds(L.latLngBounds(pts).pad(0.08));
+}
+
+/* ============ データメニュー（書き出し・読み込み・再取得） ============ */
+function exportGeo(){
+  const out = {};
+  DATA.forEach(c => { if(c.lat != null) out[c.q] = { lat:+c.lat.toFixed(6), lng:+c.lng.toFixed(6), approx:!!c.approx, src:c.src }; });
+  const blob = new Blob([JSON.stringify(out, null, 1)], { type:'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = 'clinics_geo.json';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+function importGeo(){
+  const inp = document.createElement('input');
+  inp.type = 'file'; inp.accept = 'application/json,.json';
+  inp.onchange = () => {
+    const f = inp.files[0]; if(!f) return;
+    const rd = new FileReader();
+    rd.onload = () => {
+      try{
+        const js = JSON.parse(rd.result);
+        Object.assign(cache, js); saveCache();
+        DATA.forEach(c => { c.lat = c.lng = undefined; c.approx = false; });
+        markers.clear(); applyCached(); render(); locateAll();
+      }catch(e){ alert('読み込めませんでした：' + e.message); }
+    };
+    rd.readAsText(f);
+  };
+  inp.click();
+}
+function resetGeo(){
+  if(!confirm('取得済みの位置（手で直した位置も含む）を消して、取り直しますか？')) return;
+  cache = {}; saveCache();
+  DATA.forEach(c => { c.lat = c.lng = undefined; c.approx = false; });
+  markers.clear(); render(); locateAll();
+}
+function exportCsv(){
+  const head = ['医療機関名','住所','診療科目','電話番号','エリア','分類','緯度','経度','位置の精度'];
+  const rows = DATA.map(c => [c.name, c.addr, c.dept, c.tel, c.area, c.cats.join('／'),
+    c.lat == null ? '' : c.lat.toFixed(6), c.lng == null ? '' : c.lng.toFixed(6),
+    c.lat == null ? '未取得' : (c.approx ? '概略（市町村）' : '住所一致')]);
+  const csv = [head].concat(rows)
+    .map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\r\n');
+  const blob = new Blob(['﻿' + csv], { type:'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = 'clinics.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+
+/* ============ 画面イベント ============ */
+document.getElementById('q').addEventListener('input', e => { state.q = e.target.value; render(); });
+document.getElementById('area').addEventListener('change', e => { state.area = e.target.value; render(); fitAll(); });
+document.getElementById('fit').addEventListener('click', () => fitAll());
+document.getElementById('menu').addEventListener('click', () => {
+  const c = prompt('番号を入力してください。\n1: 位置データを書き出す（clinics_geo.json）\n2: 位置データを読み込む\n3: 一覧をCSVで書き出す\n4: 位置を取り直す');
+  if(c === '1') exportGeo();
+  else if(c === '2') importGeo();
+  else if(c === '3') exportCsv();
+  else if(c === '4') resetGeo();
+});
+document.getElementById('toggle').addEventListener('click', () => document.getElementById('side').classList.add('open'));
+document.getElementById('closeside').addEventListener('click', () => document.getElementById('side').classList.remove('open'));
+
+/* ============ 起動 ============ */
+(function init(){
+  document.getElementById('srcline').textContent =
+    `出典：${SRC.title || '登録医一覧'}（${SRC.updated || ''}更新）／${DATA.length}件`;
+  const areas = [...new Set(DATA.map(c => c.area).filter(Boolean))];
+  const sel = document.getElementById('area');
+  areas.forEach(a => { const o = document.createElement('option'); o.value = a; o.textContent = a + 'エリア'; sel.appendChild(o); });
+
+  applyCached();
+  render();
+
+  // 同梱の位置データがあれば先に読む（無ければAPIで取得）
+  fetch('clinics_geo.json').then(r => r.ok ? r.json() : null).then(js => {
+    if(js){ Object.keys(js).forEach(k => { if(!cache[k]) cache[k] = js[k]; }); saveCache(); applyCached(); render(); }
+  }).catch(()=>{}).finally(() => locateAll());
+})();
+})();
+</script>
+</body>
+</html>
