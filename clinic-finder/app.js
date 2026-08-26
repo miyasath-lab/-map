@@ -221,12 +221,15 @@ function renderFavTab(){
 function renderDataTab(){
   const m = state.meta;
   const src = state.imported ? 'この端末に取り込んだCSV' : 'data/facilities.json';
+  const link = m.sourceUrl
+    ? `<a href="${esc(m.sourceUrl)}" target="_blank" rel="noopener">${esc(m.sourceUrl)}</a>` : '';
   $('dataInfo').innerHTML = `
     <div class="kv"><span class="k">データ源</span><span class="v">${esc(src)}</span></div>
-    <div class="kv"><span class="k">出典</span><span class="v">${esc(m.source || '未設定')}</span></div>
+    <div class="kv"><span class="k">出典</span><span class="v">${esc(m.source || '未設定')}${link ? '<br>' + link : ''}</span></div>
     <div class="kv"><span class="k">更新日</span><span class="v">${esc(m.updated || '未設定')}</span></div>
     <div class="kv"><span class="k">件数</span><span class="v">${state.facilities.length} 件</span></div>`;
-  $('sourceInfo').innerHTML = `${esc(m.source || '未設定')}<br>更新日：${esc(m.updated || '未設定')}` +
+  $('sourceInfo').innerHTML = `${esc(m.source || '未設定')}${link ? '<br>' + link : ''}` +
+    `<br>更新日：${esc(m.updated || '未設定')}` +
     (m.notice ? `<br><br>${esc(m.notice)}` : '');
 }
 
@@ -302,7 +305,8 @@ function importCsv(file){
       }
       const data = {
         meta: { version: '1.0.0', updated: new Date().toISOString().slice(0, 10),
-                source: `取り込みCSV：${file.name}`, isSample: false, regionGroups: CsvMap.REGION_GROUPS },
+                source: `取り込みCSV：${file.name}`, sourceUrl: '', isSample: false,
+                regionGroups: CsvMap.REGION_GROUPS },
         facilities
       };
       save(KEY_IMPORT, data);
