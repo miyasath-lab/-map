@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0d6efd">
+<meta name="description" content="那覇市・南部地区の医療機関を、地区・診療科・診療時間から検索できるサイト">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.json">
+<title>那覇市・南部地区 医療機関検索</title>
+<style>
+  :root{
+    --bg:#f5f6f8; --card:#fff; --pri:#0d6efd; --pri-d:#0b5ed7;
+    --txt:#1f2329; --sub:#6b7280; --line:#e5e7eb; --danger:#dc3545;
+    --ok:#198754; --warn:#fff3cd; --warn-b:#ffe69c;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;
+    background:var(--bg);color:var(--txt);padding-bottom:76px;font-size:16px;line-height:1.5}
+  header{background:var(--pri);color:#fff;padding:14px 16px;position:sticky;top:0;z-index:10}
+  header h1{margin:0;font-size:18px;font-weight:700}
+  header .sub{font-size:12px;opacity:.85;margin-top:2px}
+  main{padding:14px;max-width:820px;margin:0 auto}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px;
+    box-shadow:0 1px 2px rgba(0,0,0,.03)}
+  .card h2{margin:0 0 12px;font-size:15px;font-weight:700}
+  label{display:block;font-size:13px;font-weight:600;color:var(--sub);margin:0 0 6px}
+  input[type=text],input[type=search],select,textarea{
+    width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;font-size:16px;background:#fff;color:var(--txt)}
+  .row{margin-bottom:14px}
+  .row:last-child{margin-bottom:0}
+  .two{display:flex;gap:10px}
+  .two > *{flex:1;min-width:0}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:none;border-radius:10px;
+    padding:13px 16px;font-size:16px;font-weight:600;cursor:pointer;width:100%}
+  .btn.pri{background:var(--pri);color:#fff}
+  .btn.pri:active{background:var(--pri-d)}
+  .btn.sec{background:#eef1f5;color:var(--txt)}
+  .btn.gho{background:#fff;border:1px solid var(--line);color:var(--txt)}
+  .btn.sm{width:auto;padding:9px 13px;font-size:14px}
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{border:1px solid var(--line);background:#fff;border-radius:999px;padding:8px 13px;font-size:14px;cursor:pointer;color:var(--txt)}
+  .chip.on{background:var(--pri);color:#fff;border-color:var(--pri)}
+  .chip.tgl.on{background:var(--ok);border-color:var(--ok)}
+  .hint{font-size:12px;color:var(--sub);margin-top:6px}
+  details > summary{font-size:13px;font-weight:600;color:var(--sub);cursor:pointer;list-style:none;
+    padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#fff}
+  details > summary::-webkit-details-marker{display:none}
+  details > summary::before{content:'▸ '}
+  details[open] > summary::before{content:'▾ '}
+  details[open] > summary{border-bottom-left-radius:0;border-bottom-right-radius:0}
+  #featCount{color:var(--pri);font-weight:700}
+  .banner{background:var(--warn);border:1px solid var(--warn-b);border-radius:10px;padding:10px 12px;font-size:12.5px;color:#664d03;margin-bottom:14px}
+  .banner b{font-weight:700}
+  nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--line);display:flex;
+    z-index:20;padding-bottom:env(safe-area-inset-bottom)}
+  nav button{flex:1;background:none;border:none;padding:10px 0;font-size:11px;color:var(--sub);cursor:pointer}
+  nav button .ic{font-size:20px;display:block}
+  nav button.on{color:var(--pri);font-weight:700}
+  .resbar{display:flex;justify-content:space-between;align-items:center;margin:4px 2px 10px;font-size:13px;color:var(--sub)}
+  .resbar b{color:var(--txt);font-size:15px}
+  .fac{background:#fff;border:1px solid var(--line);border-radius:12px;padding:13px;margin-bottom:10px;cursor:pointer}
+  .fac .top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+  .fac .nm{font-size:16px;font-weight:700;line-height:1.35}
+  .fac .fav{background:none;border:none;font-size:20px;padding:0 2px;cursor:pointer;line-height:1}
+  .fac .meta{font-size:13px;color:var(--sub);margin-top:5px;word-break:break-all}
+  .fac .deps{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+  .tag{display:inline-block;background:#e7f1ff;color:var(--pri);border-radius:6px;padding:2px 8px;font-size:12.5px;font-weight:600}
+  .tag.g{background:#e8f5ee;color:var(--ok)}
+  .tag.n{background:#f1f3f5;color:var(--sub)}
+  .fac .acts{display:flex;gap:8px;margin-top:10px}
+  .fac .acts a{flex:1;text-align:center;text-decoration:none;background:#eef1f5;color:var(--txt);
+    border-radius:9px;padding:9px 0;font-size:14px;font-weight:600}
+  .open-now{font-size:12.5px;font-weight:700;color:var(--ok)}
+  .closed-now{font-size:12.5px;font-weight:700;color:var(--sub)}
+  .empty{text-align:center;color:var(--sub);padding:34px 14px;font-size:14px}
+  .seclabel{font-size:13px;font-weight:700;color:var(--sub);margin:18px 2px 8px}
+  .hide{display:none !important}
+  .htab{width:100%;border-collapse:collapse;font-size:14px;margin-top:6px}
+  .htab th{text-align:left;color:var(--sub);font-weight:600;width:3.2em;padding:4px 0;vertical-align:top}
+  .htab td{padding:4px 0}
+  .htab tr.today th,.htab tr.today td{color:var(--pri);font-weight:700}
+  dialog{border:none;border-radius:14px;padding:0;max-width:92%;width:460px;color:var(--txt)}
+  dialog::backdrop{background:rgba(0,0,0,.45)}
+  .dlg-head{padding:16px 16px 10px;border-bottom:1px solid var(--line)}
+  .dlg-body{padding:14px 16px;max-height:60vh;overflow:auto}
+  .dlg-foot{padding:12px 16px;border-top:1px solid var(--line);display:flex;gap:8px}
+  .kv{display:flex;gap:10px;font-size:14px;padding:6px 0;border-bottom:1px dashed var(--line)}
+  .kv:last-child{border-bottom:none}
+  .kv .k{color:var(--sub);width:5.5em;flex:none;font-weight:600}
+  .kv .v{word-break:break-all;flex:1}
+  .kv .v a{color:var(--pri)}
+  .toolbar{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+  .fileline{font-size:13px;color:var(--sub);margin-top:8px;min-height:18px}
+</style>
+</head>
+<body>
+<header>
+  <h1>🏥 那覇市・南部地区 医療機関検索</h1>
+  <div class="sub">地区・診療科・診療時間から探す</div>
+</header>
+
+<main>
+  <!-- ========== 検索タブ ========== -->
+  <section id="tab-search">
+    <div class="banner hide" id="sampleBanner"></div>
+
+    <div class="card">
+      <div class="row">
+        <label for="q">フリーワード</label>
+        <input type="search" id="q" placeholder="🔍 医療機関名・住所・診療科" autocomplete="off">
+      </div>
+
+      <div class="row two">
+        <div>
+          <label for="area">地区</label>
+          <select id="area"></select>
+        </div>
+        <div>
+          <label for="course">診療科</label>
+          <select id="course"></select>
+        </div>
+      </div>
+
+      <div class="row">
+        <label>条件で絞り込む</label>
+        <div class="chips" id="toggleChips">
+          <button class="chip tgl" data-toggle="open">🕒 今診療中</button>
+          <button class="chip tgl" data-toggle="fav">⭐ お気に入り</button>
+          <button class="chip tgl" data-toggle="hospital">🏥 病院のみ</button>
+        </div>
+      </div>
+
+      <div class="row">
+        <details id="featBox">
+          <summary>特徴で絞り込む<span id="featCount"></span></summary>
+          <div class="chips" id="featChips" style="margin-top:10px"></div>
+        </details>
+      </div>
+
+      <div class="row two">
+        <div>
+          <label for="sort">並び順</label>
+          <select id="sort">
+            <option value="name">名称順</option>
+            <option value="dist">現在地から近い順</option>
+            <option value="region">地区順</option>
+          </select>
+        </div>
+        <div>
+          <label>&nbsp;</label>
+          <button class="btn gho" id="btnGeo">📍 現在地を使う</button>
+        </div>
+      </div>
+      <div class="hint" id="geoLine"></div>
+
+      <div class="row" style="margin-top:12px">
+        <button class="btn sec sm" id="btnReset">条件をリセット</button>
+      </div>
+    </div>
+
+    <div class="resbar">
+      <span><b id="hitCount">0</b> 件</span>
+      <button class="btn gho sm" id="btnExport">⬇️ 一覧をCSV</button>
+    </div>
+    <div id="list"></div>
+  </section>
+
+  <!-- ========== お気に入りタブ ========== -->
+  <section id="tab-fav" class="hide">
+    <div class="card">
+      <h2>⭐ お気に入り</h2>
+      <div class="hint">紹介先の候補などを端末内に保存します。データを差し替えても、施設名が一致すれば引き継がれます。</div>
+    </div>
+    <div id="favList"></div>
+  </section>
+
+  <!-- ========== データタブ ========== -->
+  <section id="tab-data" class="hide">
+    <div class="card">
+      <h2>🗂 いま使っているデータ</h2>
+      <div id="dataInfo"></div>
+    </div>
+
+    <div class="card">
+      <h2>📥 CSVを取り込む</h2>
+      <div class="hint" style="margin-bottom:10px">
+        1行目をヘッダ行にしたCSV（UTF-8）を選ぶと、この端末のブラウザに保存して検索に使います。<br>
+        認識する列：医療機関名称／所在地／電話番号／診療科目／診療時間／ホームページアドレス／緯度／経度 ほか。
+      </div>
+      <input type="file" id="csvFile" accept=".csv,text/csv" style="font-size:14px">
+      <div class="fileline" id="csvLine"></div>
+      <div class="toolbar" style="margin-top:12px">
+        <button class="btn gho sm" id="btnDumpJson">⬇️ facilities.json を書き出す</button>
+        <button class="btn gho sm" id="btnClearImport">取り込みデータを削除</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>🔄 データの更新方法</h2>
+      <div class="hint">
+        恒久的に反映するには <code>data/facilities.json</code> を差し替えてサイトを再公開します。<br>
+        CSVからの変換は <code>node tools/build-facilities.js &lt;入力.csv&gt;</code> でも行えます（詳細は README）。
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== 情報タブ ========== -->
+  <section id="tab-info" class="hide">
+    <div class="card">
+      <h2>ℹ️ このサイトについて</h2>
+      <div class="hint">
+        那覇市・南部地区（南部保健所管内）の医療機関を、地区・診療科・診療時間・特徴から検索するための静的サイトです。
+        検索はすべて端末内で完結し、入力内容が外部へ送信されることはありません。
+      </div>
+    </div>
+    <div class="card">
+      <h2>⚠️ ご利用上の注意</h2>
+      <div class="hint">
+        掲載内容（診療時間・診療科・連絡先）は変更されることがあります。受診前に必ず各医療機関へご確認ください。<br>
+        急を要する症状のときは、迷わず救急外来の受診または119番通報をご検討ください。<br>
+        「今診療中」の判定は、お使いの端末の日時と登録された診療時間から機械的に算出したもので、臨時休診・祝日・年末年始は反映されません。
+      </div>
+    </div>
+    <div class="card">
+      <h2>🔗 データの出典</h2>
+      <div class="hint" id="sourceInfo"></div>
+    </div>
+  </section>
+</main>
+
+<nav>
+  <button data-tab="search" class="on"><span class="ic">🔍</span>検索</button>
+  <button data-tab="fav"><span class="ic">⭐</span>お気に入り</button>
+  <button data-tab="data"><span class="ic">🗂</span>データ</button>
+  <button data-tab="info"><span class="ic">ℹ️</span>情報</button>
+</nav>
+
+<dialog id="dlg">
+  <div class="dlg-head">
+    <div style="font-size:17px;font-weight:700" id="dlgName"></div>
+    <div class="hint" id="dlgSub" style="margin-top:4px"></div>
+  </div>
+  <div class="dlg-body" id="dlgBody"></div>
+  <div class="dlg-foot">
+    <button class="btn sec" id="dlgCopy">📋 情報をコピー</button>
+    <button class="btn gho" id="dlgClose">閉じる</button>
+  </div>
+</dialog>
+
+<script src="csvmap.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
